@@ -94,25 +94,57 @@ def apply_ohe(df_train: pd.DataFrame, df_test: pd.DataFrame):
     df_test = ohe_encoder.transform(df_test)
     return df_train, df_test, ohe_encoder
 
-def apply_tfidf(df_train: pd.DataFrame, df_test: pd.DataFrame):
-    """Combine text columns and vectorize using TF-IDF to extract keyword importance."""
+def apply_tfidf_training(df_train: pd.DataFrame, df_test: pd.DataFrame):
+    """
+    Fit a TF-IDF vectorizer on training data and transform both train and test sets.
+    Call this during model training. Use apply_tfidf_inference() at prediction time.
+    Returns (df_train, df_test, fitted_tfidf_vectorizer).
+    """
     TF_IDF_columns = ['company_profile', 'title', 'description', 'requirements', 'benefits']
-    
+
     df_train[TF_IDF_columns] = df_train[TF_IDF_columns].fillna('')
     df_test[TF_IDF_columns] = df_test[TF_IDF_columns].fillna('')
-    
+
     df_train['combined_text'] = df_train[TF_IDF_columns].apply(lambda x: ' '.join(x), axis=1)
     df_test['combined_text'] = df_test[TF_IDF_columns].apply(lambda x: ' '.join(x), axis=1)
-    
-    tfidf = TfidfVectorizer(max_features=1000, stop_words='english')
-    
-    train_tfidf = pd.DataFrame(tfidf.fit_transform(df_train['combined_text']).toarray(), index=df_train.index)
-    test_tfidf = pd.DataFrame(tfidf.transform(df_test['combined_text']).toarray(), index=df_test.index)
-    
+
+    tfidf_vec = TfidfVectorizer(max_features=1000, stop_words='english')
+    tfidf_vec.fit(df_train['combined_text'])
+
+    train_features = pd.DataFrame(
+        tfidf_vec.transform(df_train['combined_text']).toarray(),
+        index=df_train.index
+    )
+    test_features = pd.DataFrame(
+        tfidf_vec.transform(df_test['combined_text']).toarray(),
+        index=df_test.index
+    )
+
     df_train = df_train.drop(columns=TF_IDF_columns + ['combined_text'])
     df_test = df_test.drop(columns=TF_IDF_columns + ['combined_text'])
-    
-    df_train = pd.concat([df_train, train_tfidf], axis=1)
-    df_test = pd.concat([df_test, test_tfidf], axis=1)
-    
-    return df_train, df_test, tfidf
+
+    df_train = pd.concat([df_train, train_features], axis=1)
+    df_test = pd.concat([df_test, test_features], axis=1)
+
+    return df_train, df_test, tfidf_vec
+
+def apply_tfidf_inference(df: pd.DataFrame, tfidf_vec: TfidfVectorizer) -> pd.DataFrame:
+    """
+    Transform-only version of apply_tfidf() for single-row inference requests.
+    This is the ONLY place TF-IDF combination logic should exist — predict.py
+    calls this instead of re-implementing the combine+vectorize steps itself.
+    """
+    TF_IDF_columns = ['company_profile', 'title', 'description', 'requirements', 'benefits']
+
+    df[TF_IDF_columns] = df[TF_IDF_columns].fillna('')
+    df['combined_text'] = df[TF_IDF_columns].apply(lambda x: ' '.join(x), axis=1)
+
+    tfidf_features = pd.DataFrame(
+        tfidf_vec.transform(df['combined_text']).toarray(),
+        index=df.index
+    )
+
+    df = df.drop(columns=TF_IDF_columns + ['combined_text'])
+    df = pd.concat([df, tfidf_features], axis=1)
+
+    return df

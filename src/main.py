@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import the Pydantic schema for input validation
@@ -12,6 +13,14 @@ app = FastAPI(
     title="Fraudulent Job Posting Detection API",
     description="An ML-powered API to detect fake job postings in real-time.",
     version="1.0.0"
+)
+
+# Allow the HTML frontend to call the API from the browser
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")

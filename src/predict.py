@@ -5,17 +5,24 @@ from xgboost import XGBClassifier
 # Import your custom preprocessing pipeline
 import preprocess
 
+# Threshold chosen from PR curve analysis (pics/output.png).
+# At 0.5: Recall ~0.94 (catches 94% of fraud), Precision ~0.21.
+# For fraud detection, missing a fraudulent posting is far more costly
+# than a false positive, so we prioritise high recall over precision.
+DECISION_THRESHOLD = 0.5
+
 print("Loading ML artifacts into memory...")
 try:
     # Load encoders and vectorizer using joblib
     target_enc = joblib.load('models/target_encoder.pkl')
     ohe_enc = joblib.load('models/ohe_encoder.pkl')
     tfidf_vec = joblib.load('models/tfidf_vectorizer.pkl')
-    
+    feature_columns = joblib.load('models/feature_columns.pkl')  # FIX: new artifact from train.py
+
     # Load XGBoost model using its native method
     model = XGBClassifier()
     model.load_model('models/xgboost_fraud_model.json')
-    
+
     print("All artifacts loaded successfully!")
 except Exception as e:
     print(f"Error loading ML artifacts: {e}")
@@ -29,47 +36,48 @@ def predict_fraud(job_data_dict: dict) -> dict:
     """
     # 1. Convert incoming dictionary to a single-row DataFrame
     df = pd.DataFrame([job_data_dict])
-    
+
     # 2. Convert boolean API inputs (True/False) to integers (1/0) for the model
     bool_columns = ['telecommuting', 'has_company_logo', 'has_questions']
     for col in bool_columns:
         if col in df.columns:
             df[col] = df[col].astype(int)
-            
-    # 3. Apply Feature Engineering (Single source of truth from preprocess.py)
+
+    # 3. Apply Feature Engineering (single source of truth from preprocess.py)
     df = preprocess.process_salary(df)
     df = preprocess.create_presence_features(df)
     df = preprocess.fill_missing_values(df)
     df = preprocess.create_length_features(df)
-    
+
     # 4. Apply Encoders (using transform ONLY, no fit)
-    # Passing df twice as a workaround if the function expects train/test tuple
-    df, _ = preprocess.apply_ordinal_encoding(df, df) 
-    
+    df, _ = preprocess.apply_ordinal_encoding(df, df)
+
     df = target_enc.transform(df)
     df = ohe_enc.transform(df)
-    
-    # 5. Apply TF-IDF Vectorization for text columns
-    text_columns = ['company_profile', 'title', 'description', 'requirements', 'benefits']
-    df[text_columns] = df[text_columns].fillna('')
-    combined_text = df[text_columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-    
-    text_tfidf = pd.DataFrame(tfidf_vec.transform(combined_text).toarray(), index=df.index)
-    
-    # Drop original text columns and merge the TF-IDF features
-    df = df.drop(columns=text_columns)
-    df = pd.concat([df, text_tfidf], axis=1)
-    
-    # Ensure column order matches the training data exactly (if needed)
-    # df = df[model.feature_names_in_] 
 
-    # 6. Generate Prediction
-    prediction = model.predict(df)[0]
+    # 5. FIX: Apply TF-IDF via the shared preprocess function instead of
+    # re-implementing the combine+vectorize steps here. Same code path
+    # as train.py's test set now — no more risk of the two drifting apart.
+    df = preprocess.apply_tfidf_inference(df, tfidf_vec)
+
+    # 6. FIX: Reindex to match training column order exactly.
+    # Without this, OHE/target-encoding can produce columns in a different
+    # order (or missing columns) for a single-row request, and XGBoost will
+    # silently score against the wrong feature meaning. fill_value=0 handles
+    # any column that legitimately can't appear from one row (e.g. a OHE
+    # category never seen in this request).
+    df = df.reindex(columns=feature_columns, fill_value=0)
+
+    # 7. Generate Prediction
     probability = model.predict_proba(df)[0][1]
-    
+    # FIX: use the tuned threshold instead of the model's default .predict()
+    # (which is hardcoded to 0.5 internally). Run a PR curve on your
+    # validation set to pick DECISION_THRESHOLD properly — see note below.
+    prediction = int(probability >= DECISION_THRESHOLD)
+
     # Return results as a clean dictionary ready for JSON response
     return {
-        "is_fraudulent": int(prediction),
+        "is_fraudulent": prediction,
         "fraud_probability": round(float(probability), 4)
     }
 
@@ -95,4 +103,4 @@ if __name__ == "__main__":
     }
     result = predict_fraud(dummy_data)
     print("\nTest Prediction Result:")
-    print(result)
+    print(result)

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FraudGuard — Job Posting Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0b0e1a;
+      --surface:     #111827;
+      --surface2:    #1a2235;
+      --border:      rgba(255,255,255,0.07);
+      --accent:      #6366f1;
+      --accent-glow: rgba(99,102,241,0.35);
+      --danger:      #ef4444;
+      --danger-glow: rgba(239,68,68,0.30);
+      --safe:        #22c55e;
+      --safe-glow:   rgba(34,197,94,0.30);
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --radius:      14px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.18) 0%, transparent 70%);
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      text-align: center;
+      padding: 60px 20px 40px;
+    }
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.30);
+      border-radius: 50px;
+      padding: 6px 18px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #a5b4fc;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .logo-badge::before { content: "●"; color: var(--safe); font-size: 0.6rem; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    h1 span { color: var(--accent); }
+    header p {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 520px;
+      margin-inline: auto;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    /* ── Card ─────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      margin-bottom: 28px;
+    }
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Form Grid ────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+    .span-2 { grid-column: span 2; }
+
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    label  { font-size: 0.8rem; font-weight: 500; color: #94a3b8; }
+
+    input[type="text"],
+    select,
+    textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 11px 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      width: 100%;
+    }
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    select { cursor: pointer; }
+    select option { background: #1e293b; }
+
+    .char-count { float: right; font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+    .char-count.near-limit { color: #f97316; }
+    .char-count.at-limit    { color: var(--danger); }
+
+    .required-star { color: var(--danger); margin-left: 2px; }
+    .field-error {
+      display: none;
+      font-size: 0.75rem;
+      color: #fca5a5;
+      margin-top: 2px;
+    }
+    input.invalid, textarea.invalid {
+      border-color: var(--danger) !important;
+      box-shadow: 0 0 0 3px var(--danger-glow) !important;
+    }
+
+    /* ── Toggles ──────────────────────────────────────── */
+    .toggles { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .toggle-item { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-item input[type="checkbox"] { display: none; }
+    .toggle-track {
+      width: 42px; height: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      position: relative;
+      transition: background 0.25s;
+    }
+    .toggle-track::after {
+      content: "";
+      position: absolute;
+      width: 16px; height: 16px;
+      background: var(--muted);
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform 0.25s, background 0.25s;
+    }
+    .toggle-item input:checked ~ .toggle-track { background: var(--accent); border-color: var(--accent); }
+    .toggle-item input:checked ~ .toggle-track::after { transform: translateX(18px); background: #fff; }
+    .toggle-label { font-size: 0.85rem; color: var(--text); user-select: none; }
+
+    /* ── Submit Button ────────────────────────────────── */
+    .btn-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 15px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+      margin-top: 10px;
+      letter-spacing: 0.01em;
+    }
+    .btn-submit:hover  { background: #4f46e5; box-shadow: 0 0 22px var(--accent-glow); }
+    .btn-submit:active { transform: scale(0.985); }
+    .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result Card ──────────────────────────────────── */
+    #result-card {
+      display: none;
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #result-card.fraud {
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.25);
+    }
+    #result-card.safe {
+      background: rgba(34,197,94,0.07);
+      border: 1px solid rgba(34,197,94,0.25);
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+    .result-icon {
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    .fraud .result-icon { background: var(--danger-glow); }
+    .safe  .result-icon { background: var(--safe-glow); }
+
+    .result-title { font-size: 1.55rem; font-weight: 700; line-height: 1.2; }
+    .fraud .result-title { color: var(--danger); }
+    .safe  .result-title { color: var(--safe); }
+    .result-subtitle { font-size: 0.9rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Probability Bar ──────────────────────────────── */
+    .prob-section { margin-top: 4px; }
+    .prob-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .prob-label strong { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+    .prob-bar-bg {
+      height: 10px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50px;
+      overflow: hidden;
+    }
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 50px;
+      width: 0%;
+      transition: width 0.9s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .fraud .prob-bar-fill { background: linear-gradient(90deg, #ef4444, #f97316); }
+    .safe  .prob-bar-fill { background: linear-gradient(90deg, #22c55e, #06b6d4); }
+
+    .prob-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── Error ────────────────────────────────────────── */
+    #error-msg {
+      display: none;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      color: #fca5a5;
+      font-size: 0.88rem;
+      margin-top: 16px;
+    }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 620px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .span-2 { grid-column: span 1; }
+      .card { padding: 24px 20px; }
+      #result-card { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-badge">ML-Powered · Live Detection</div>
+  <h1>Is this job posting <span>real?</span></h1>
+  <p>Fill in the job details below and our model will analyse it for signs of fraud in real time.</p>
+</header>
+
+<div class="container">
+
+  <form id="jobForm" autocomplete="off">
+
+    <!-- Basic Info -->
+    <div class="card">
+      <div class="card-title">Basic Information</div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="title">Job Title <span class="required-star">*</span></label>
+          <input id="title" type="text" placeholder="e.g. Software Engineer" maxlength="200" />
+          <span class="field-error" id="err-title">Job title is required.</span>
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <input id="location" type="text" placeholder="e.g. Amman, Jordan" maxlength="200" />
+        </div>
+        <div class="field">
+          <label for="department">Department</label>
+          <input id="department" type="text" placeholder="e.g. Engineering" />
+        </div>
+        <div class="field">
+          <label for="salary_range">Salary Range <span style="font-size:0.72rem;color:var(--muted);font-weight:400;">(optional)</span></label>
+          <input id="salary_range" type="text" placeholder="e.g. 1000-2000 or leave blank" maxlength="50" />
+          <span class="field-error" id="err-salary">If provided, use number-number format, e.g. 1000-2000</span>
+        </div>
+        <div class="field">
+          <label for="industry">Industry</label>
+          <input id="industry" type="text" placeholder="e.g. Information Technology" />
+        </div>
+        <div class="field">
+          <label for="function">Function</label>
+          <input id="function" type="text" placeholder="e.g. Engineering" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Job Details -->
+    <div class="card">
+      <div class="card-title">Job Details</div>
+      <div class="grid-2">
+        <div class="field span-2">
+          <label for="company_profile">Company Profile <span class="char-count" id="cc-company_profile">0 / 5000</span></label>
+          <textarea id="company_profile" placeholder="Brief description of the company..." maxlength="5000"></textarea>
+        </div>
+        <div class="field span-2">
+          <label for="description">Job Description <span class="char-count" id="cc-description">0 / 5000</span></label>
+          <textarea id="description" placeholder="What will the employee be doing..." maxlength="5000"></textarea>
+        </div>
+        <div class="field">
+          <label for="requirements">Requirements <span class="char-count" id="cc-requirements">0 / 5000</span></label>
+          <textarea id="requirements" placeholder="Skills and qualifications needed..." maxlength="5000"></textarea>
+        </div>
+        <div class="field">
+          <label for="benefits">Benefits <span class="char-count" id="cc-benefits">0 / 2000</span></label>
+          <textarea id="benefits" placeholder="Health insurance, remote work..." maxlength="2000"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Classification -->
+    <div class="card">
+      <div class="card-title">Classification</div>
+      <div class="grid-3">
+        <div class="field">
+          <label for="employment_type">Employment Type</label>
+          <select id="employment_type">
+            <option value="Unknown">Unknown</option>
+            <option value="Full-time">Full-time</option>
+            <option value="Part-time">Part-time</option>
+            <option value="Contract">Contract</option>
+            <option value="Temporary">Temporary</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="required_experience">Required Experience</label>
+          <select id="required_experience">
+            <option value="Unknown">Unknown</option>
+            <option value="Internship">Internship</option>
+            <option value="Entry level">Entry level</option>
+            <option value="Associate">Associate</option>
+            <option value="Mid-Senior level">Mid-Senior level</option>
+            <option value="Director">Director</option>
+            <option value="Executive">Executive</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="required_education">Required Education</label>
+          <select id="required_education">
+            <option value="Unknown">Unknown</option>
+            <option value="Unspecified">Unspecified</option>
+            <option value="Some High School Coursework">Some High School</option>
+            <option value="High School or equivalent">High School</option>
+            <option value="Vocational">Vocational</option>
+            <option value="Vocational - HS Diploma">Vocational - HS Diploma</option>
+            <option value="Vocational - Degree">Vocational - Degree</option>
+            <option value="Some College Coursework Completed">Some College</option>
+            <option value="Associate Degree">Associate Degree</option>
+            <option value="Bachelor's Degree">Bachelor's Degree</option>
+            <option value="Master's Degree">Master's Degree</option>
+            <option value="Professional">Professional</option>
+            <option value="Doctorate">Doctorate</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toggles" style="margin-top: 24px;">
+        <label class="toggle-item">
+          <input type="checkbox" id="telecommuting" />
+          <div class="toggle-track"></div>
+          <span class="toggle-label">Remote / Telecommuting</span>
+        </label>
+        <label class="toggle-item">
+          <input type="checkbox" id="has_company_logo" />
+          <div class="toggle-track"></div>
+          <span class="toggle-label">Has Company Logo</span>
+        </label>
+        <label class="toggle-item">
+          <input type="checkbox" id="has_questions" />
+          <div class="toggle-track"></div>
+          <span class="toggle-label">Has Screening Questions</span>
+        </label>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-submit" id="submitBtn">
+      <div class="spinner" id="spinner"></div>
+      <span id="btnText">Analyse Job Posting</span>
+    </button>
+
+    <div id="error-msg"></div>
+  </form>
+
+  <!-- Result -->
+  <div id="result-card">
+    <div class="result-header">
+      <div class="result-icon" id="result-icon"></div>
+      <div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-subtitle" id="result-subtitle"></div>
+      </div>
+    </div>
+    <div class="prob-section">
+      <div class="prob-label">
+        <span>Fraud Probability</span>
+        <strong id="prob-value">0%</strong>
+      </div>
+      <div class="prob-bar-bg">
+        <div class="prob-bar-fill" id="prob-fill"></div>
+      </div>
+      <div class="prob-ticks">
+        <span>0% — Definitely Legitimate</span>
+        <span>100% — Definitely Fraudulent</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API_URL    = 'http://127.0.0.1:8000/predict';
+  const TIMEOUT_MS = 8000; // 8-second request timeout
+
+  const form       = document.getElementById('jobForm');
+  const submitBtn  = document.getElementById('submitBtn');
+  const spinner    = document.getElementById('spinner');
+  const btnText    = document.getElementById('btnText');
+  const resultCard = document.getElementById('result-card');
+  const errorMsg   = document.getElementById('error-msg');
+
+  // ── Character counters ─────────────────────────────
+  ['company_profile', 'description', 'requirements', 'benefits'].forEach(id => {
+    const ta    = document.getElementById(id);
+    const max   = parseInt(ta.getAttribute('maxlength'), 10);
+    const label = document.getElementById('cc-' + id);
+    ta.addEventListener('input', () => {
+      const used = ta.value.length;
+      label.textContent = used + ' / ' + max;
+      label.className   = 'char-count' +
+        (used >= max        ? ' at-limit'    :
+         used >= max * 0.9  ? ' near-limit'  : '');
+    });
+  });
+
+  // ── Field validation ───────────────────────────────
+  function setFieldError(inputId, errorId, msg) {
+    const input = document.getElementById(inputId);
+    const err   = document.getElementById(errorId);
+    input.classList.add('invalid');
+    err.textContent    = msg;
+    err.style.display  = 'block';
+  }
+  function clearFieldError(inputId, errorId) {
+    document.getElementById(inputId).classList.remove('invalid');
+    document.getElementById(errorId).style.display = 'none';
+  }
+
+  // Clear errors when user starts typing
+  document.getElementById('title').addEventListener('input', () => clearFieldError('title', 'err-title'));
+  document.getElementById('salary_range').addEventListener('input', () => clearFieldError('salary_range', 'err-salary'));
+
+  function validate() {
+    let ok = true;
+
+    // 1. Title is required
+    if (!val('title')) {
+      setFieldError('title', 'err-title', 'Job title is required.');
+      ok = false;
+    }
+
+    // 2. Salary format — only if the user filled it in
+    const salary = val('salary_range');
+    if (salary && salary !== 'Missing') {
+      const clean = salary.replace(/,/g, '');
+      if (!/^\d+(\.\d+)?-\d+(\.\d+)?$/.test(clean)) {
+        setFieldError('salary_range', 'err-salary', 'Use number-number format, e.g. 1000-2000 — or leave blank.');
+        ok = false;
+      }
+    }
+
+    return ok;
+  }
+
+  // ── Form submit ────────────────────────────────────
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validate()) return;   // stop if validation fails
+    setLoading(true);
+    hideResult();
+    hideError();
+
+    const payload = {
+      title:               val('title')              || 'Unknown',
+      location:            val('location')           || 'unknown',
+      department:          val('department')         || 'Unknown',
+      salary_range:        val('salary_range')       || 'Missing',
+      company_profile:     val('company_profile')    || 'missing',
+      description:         val('description')        || 'Unknown',
+      requirements:        val('requirements')       || 'Unknown',
+      benefits:            val('benefits')           || 'Unknown',
+      telecommuting:       document.getElementById('telecommuting').checked,
+      has_company_logo:    document.getElementById('has_company_logo').checked,
+      has_questions:       document.getElementById('has_questions').checked,
+      employment_type:     val('employment_type'),
+      required_experience: val('required_experience'),
+      required_education:  val('required_education'),
+      industry:            val('industry')           || 'Unknown',
+      function:            val('function')           || 'Unknown',
+    };
+
+    // Abort controller for timeout
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+        signal:  controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        const err = await res.json();
+        // Handle Pydantic 422 validation errors in a human-readable way
+        if (res.status === 422 && err.detail && Array.isArray(err.detail)) {
+          const messages = err.detail.map(e => `• ${e.loc.slice(1).join(' → ')}: ${e.msg}`).join('\n');
+          throw new Error('Validation error:\n' + messages);
+        }
+        throw new Error(err.detail || `Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      showResult(data.is_fraudulent, data.fraud_probability);
+
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        showError('Request timed out after 8 seconds. Check that the API server is running.');
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        showError('Cannot reach the API. Make sure the server is running on http://127.0.0.1:8000');
+      } else {
+        showError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  /* ── Helpers ─────────────────────────────────── */
+  function val(id) {
+    return document.getElementById(id).value.trim();
+  }
+
+  function setLoading(on) {
+    submitBtn.disabled = on;
+    spinner.style.display  = on ? 'block' : 'none';
+    btnText.textContent    = on ? 'Analysing…' : 'Analyse Job Posting';
+  }
+
+  function hideResult() {
+    resultCard.style.display = 'none';
+    resultCard.className     = '';
+  }
+
+  function hideError() {
+    errorMsg.style.display = 'none';
+  }
+
+  function showError(msg) {
+    errorMsg.textContent    = '⚠️  ' + msg;
+    errorMsg.style.display  = 'block';
+  }
+
+  function showResult(isFraud, probability) {
+    const pct = Math.round(probability * 100);
+
+    resultCard.className = isFraud ? 'fraud' : 'safe';
+    resultCard.style.display = 'block';
+
+    document.getElementById('result-icon').textContent  = isFraud ? '🚨' : '✅';
+    document.getElementById('result-title').textContent = isFraud
+      ? 'Fraudulent Job Posting Detected'
+      : 'Legitimate Job Posting';
+    document.getElementById('result-subtitle').textContent = isFraud
+      ? 'This posting shows strong signals of being fake. Proceed with caution.'
+      : 'No significant fraud signals detected. This posting appears genuine.';
+
+    // Animate probability number
+    let current = 0;
+    const probEl = document.getElementById('prob-value');
+    const step   = pct / 40;
+    const timer  = setInterval(() => {
+      current = Math.min(current + step, pct);
+      probEl.textContent = Math.round(current) + '%';
+      if (current >= pct) clearInterval(timer);
+    }, 20);
+
+    // Animate bar (small delay so CSS transition fires)
+    setTimeout(() => {
+      document.getElementById('prob-fill').style.width = pct + '%';
+    }, 50);
+
+    // Scroll to result
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+</script>
+</body>
+</html>
