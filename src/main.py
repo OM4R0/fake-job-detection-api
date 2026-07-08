@@ -26,20 +26,12 @@ app.add_middleware(
 )
 
 @app.get("/")
-def health_check():
-    """
-    Root endpoint for basic health checking.
-    Useful for Docker containers or load balancers to verify the API is alive.
-    """
-    return {
-        "status": "active",
-        "message": "Fraud Detection API is running smoothly!"
-    }
-
-@app.get("/ui")
 def serve_frontend():
     return FileResponse("frontend/index.html")
 
+@app.get("/health")
+def health_check():
+    return {"status": "active", "message": "Fraud Detection API is running smoothly!"}
 @app.post("/predict")
 def predict_job_fraud(job_request: JobPostingRequest):
     """
