@@ -5,10 +5,9 @@ from xgboost import XGBClassifier
 # Import your custom preprocessing pipeline
 import preprocess
 
-# Threshold chosen from PR curve analysis (pics/output.png).
-# At 0.5: Recall ~0.94 (catches 94% of fraud), Precision ~0.21.
-# For fraud detection, missing a fraudulent posting is far more costly
-# than a false positive, so we prioritise high recall over precision.
+# Threshold = 0.5. Chosen to prioritize recall (catching fraud) over precision,
+# since the cost of missing a real scam is higher than a false alarm.
+# At 0.5: Precision=0.421, Recall=0.789, F1=0.549 (measured on held-out test set).
 DECISION_THRESHOLD = 0.5
 
 print("Loading ML artifacts into memory...")
@@ -103,4 +102,4 @@ if __name__ == "__main__":
     }
     result = predict_fraud(dummy_data)
     print("\nTest Prediction Result:")
-    print(result)
+    print(result)
