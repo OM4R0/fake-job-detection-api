@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import uvicorn
 
 # Import the Pydantic schema for input validation
@@ -33,6 +35,10 @@ def health_check():
         "status": "active",
         "message": "Fraud Detection API is running smoothly!"
     }
+
+@app.get("/ui")
+def serve_frontend():
+    return FileResponse("frontend/index.html")
 
 @app.post("/predict")
 def predict_job_fraud(job_request: JobPostingRequest):
