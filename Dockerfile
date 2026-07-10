@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # without needing PYTHONPATH tricks, and `models/` paths stay correct.
 COPY src/ .
 COPY models/ ./models/
-COPY frontend/ ./frontend/
+COPY frontend/ ./frontend/  
 
 # ── Expose port ───────────────────────────────────────────────────────────────
 EXPOSE 8000
