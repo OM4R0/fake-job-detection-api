@@ -56,13 +56,14 @@ def main():
     X_train, X_test, ohe_enc = preprocess.apply_ohe(X_train, X_test)
     X_train, X_test, tfidf_vec = preprocess.apply_tfidf_training(X_train, X_test)
 
-    # FIX: Save the exact final column order. prdedict.py needs this to
+    # Save the exact final column order. predict.py needs this to
     # reindex single-row inference requests so they match training layout
     # (OHE / target encoding / TF-IDF can produce misaligned columns otherwise).
     feature_columns = X_train.columns.tolist()
 
     print("Training XGBClassifier with optimal hyperparameters...")
-    # Best parameters extracted from Optuna study
+    # Parameters from the Optuna study in the notebook. scale_pos_weight is
+    # lowered from the tuned 124 to 20: 124 gave 0.18 precision (see README).
     model = XGBClassifier(
         n_estimators=370,
         learning_rate=0.012491787341519192,

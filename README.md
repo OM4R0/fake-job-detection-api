@@ -15,7 +15,7 @@ FraudGuard is an end-to-end Machine Learning pipeline and REST API that detects 
   - **Target Encoding** for high-cardinality categorical variables (e.g. location, industry, function).
   - **One-Hot Encoding** for low-cardinality variables (e.g. employment type).
   - **Ordinal Encoding** for naturally ranked fields (experience level, education level).
-- **Imbalanced Data Handling:** `scale_pos_weight` tuned via Optuna, with the decision threshold deliberately set to prioritize recall — see [Model Performance](#-model-performance) below.
+- **Imbalanced Data Handling:** hyperparameters were searched with Optuna in the notebook (20 trials, 5-fold stratified CV, maximizing recall). The best trial used `scale_pos_weight=124`, which gave 0.88 recall but only 0.18 precision on the test set, so `train.py` lowers it to 20 to balance the two (0.79 recall, 0.42 precision) — see [Model Performance](#-model-performance) below.
 - **Dockerized:** Production-ready image based on Python 3.12 slim, deployed on Render.
 
 ## 📁 Project Structure
